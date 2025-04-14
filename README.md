@@ -20,8 +20,11 @@ Inputs (Sensores)
 - Botão de Pulo: Para iniciar a ação de salto.
 - Botão de Agachar: Para acionar a ação de abaixar.
 - Botão/Comando para Lançar Foguinho: Aciona o disparo do projétil.
+- Botão de correr
+- Botão de liga/desliga
 
 3. Protocolo Utilizado
+UART
 
 4. Diagrama de Blocos Explicativo do Firmware
 
