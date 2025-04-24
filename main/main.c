@@ -22,6 +22,7 @@ const int BOTAO_PULO = 2;
 const int BOTAO_CORRER = 3;
 const int BOTAO_START = 4;
 const int BOTAO_POWER = 5;
+const int LED_PIN = 15;
 
 // Declar filas
 QueueHandle_t xQueueAdcx;
@@ -51,7 +52,7 @@ void process_taskY(void *p) {
     int sum;
 
     while (true) {
-        if ( xQueueReceive( xQueueAdcy, &struct1, 100) ) {
+        if ( xQueueReceive( xQueueAdcy, &struct1, 1) ) {
             buffer[indice]=struct1.val;
             sum=0;
             for ( int i=0; i<5; i++ ) {
@@ -61,10 +62,10 @@ void process_taskY(void *p) {
             indice=( indice+1 )%5;
             adc_t processed_data={ struct1.axis , med_movel };
             if(&processed_data > 0){
-                xQueueSend( xQueueProcessy, &processed_data, 500 );
+                xQueueSend( xQueueProcessy, &processed_data, 1 );
             }
                 
-            vTaskDelay( pdMS_TO_TICKS(40) );
+            vTaskDelay( pdMS_TO_TICKS(1) );
         }
     }
 }
@@ -88,10 +89,10 @@ void process_taskX(void *p) {
             indice=( indice+1 )%5;
             adc_t processed_data={ struct1.axis, med_movel };
             if(&processed_data > 0){
-                xQueueSend( xQueueProcessx, &processed_data, 500 );
+                xQueueSend( xQueueProcessx, &processed_data, 1 );
             }
 
-            vTaskDelay( pdMS_TO_TICKS(40) );
+            vTaskDelay( pdMS_TO_TICKS(1) );
         }
     }
 }
@@ -103,14 +104,16 @@ void y_task(void *params) {
     while (true) {
         adc_select_input(1);
         uint16_t resultado=adc_read();
+        
         adc_t struct1={1, resultado};
-        xQueueSend( xQueueAdcy, &struct1, 500 );
+        xQueueSend( xQueueAdcy, &struct1, 1 );
         adc_t resultado_processado;
-        if ( xQueueReceive(xQueueProcessy, &resultado_processado, 100) ) {
+        if ( xQueueReceive(xQueueProcessy, &resultado_processado, 1) ) {
 
-            xQueueSend( xQueueAdc2y, &resultado_processado, 100 );
+            xQueueSend( xQueueAdc2y, &resultado_processado, 1 );
         }
-        vTaskDelay( pdMS_TO_TICKS(150) );
+        vTaskDelay( pdMS_TO_TICKS(130) );
+       
     }
 }
 
@@ -120,13 +123,15 @@ void x_task(void *params) {
     while (1) {
         adc_select_input(0);
         uint16_t resultado=adc_read();
+        
         adc_t struct1={ 0, resultado };
-        xQueueSend( xQueueAdcx, &struct1, 500 );
+
+        xQueueSend( xQueueAdcx, &struct1, 1 );
         adc_t resultado_processado;
-        if ( xQueueReceive(xQueueProcessx, &resultado_processado, 100) ) {
-            xQueueSend( xQueueAdc2x, &resultado_processado, 100 );
+        if ( xQueueReceive(xQueueProcessx, &resultado_processado, 1) ) {
+            xQueueSend( xQueueAdc2x, &resultado_processado, 1 );
         }
-        vTaskDelay( pdMS_TO_TICKS(150) );
+        vTaskDelay( pdMS_TO_TICKS(130) );
     }
 }
 
@@ -151,7 +156,7 @@ void uart_task(void *params) {
 
     while (true) {
         // Se houver dado novo do eixo X, envia pela UART no formato esperado
-        if ( xQueueReceive(xQueueAdc2x, &X, portMAX_DELAY) ) {
+        if ( xQueueReceive(xQueueAdc2x, &X, 1) ) {
             int x_na_escala=escala_mouse(X.val);
             // Garante que só vai pra frente o que for diferente de 0, assim, nao acumula
             if( escala_mouse(X.val) != 0 ){
@@ -164,7 +169,7 @@ void uart_task(void *params) {
         }
 
         // Se houver dado novo do eixo Y, envia pela UART no formato esperado
-        if ( xQueueReceive( xQueueAdc2y, &Y , portMAX_DELAY) ) {
+        if ( xQueueReceive( xQueueAdc2y, &Y , 1) ) {
             int y_na_escala = escala_mouse(Y.val);
             // Garante que só vai pra frente o que for diferente de 0, assim, nao acumula
             if( escala_mouse(Y.val)!=0 ){
@@ -175,12 +180,13 @@ void uart_task(void *params) {
             }            
         }
 
-        if (xQueueReceive(xQueueBotao, &botao, 0)) {
+        if (xQueueReceive(xQueueBotao, &botao, 1)) {
             uart_putc_raw(UART_ID, botao.axis);  // ID do botão (ex: 2 = pulo)
             uart_putc_raw(UART_ID, botao.val);   // 1 = pressionado
             uart_putc_raw(UART_ID, 0);           // reservado
             uart_putc_raw(UART_ID, 0xFF);        // delimitador
         }
+        vTaskDelay( pdMS_TO_TICKS(10) );
 
     }
 }
@@ -189,8 +195,8 @@ void botao_callback(uint gpio, uint32_t events) {
     static bool ligado = true; // Estado inicial
     adc_t struct1;
 
-    if (events & GPIO_IRQ_EDGE_FALL) {
-        if (!ligado && gpio != BOTAO_POWER) return;  // Ignora tudo se desligado
+    if (events == GPIO_IRQ_EDGE_FALL) {
+        // if (!ligado && gpio != BOTAO_POWER) return;  // Ignora tudo se desligado
 
         switch (gpio) {
             case BOTAO_PULO:
@@ -218,10 +224,11 @@ void botao_callback(uint gpio, uint32_t events) {
                 return; // Ignora botões desconhecidos
         }
 
-        xQueueSendFromISR(xQueueBotao, &struct1, NULL);
+        xQueueSendFromISR(xQueueBotao, &struct1, 1);
 
     }
 }
+
 
 void init_botoes() {
     uint botoes[] = {BOTAO_PULO, BOTAO_CORRER, BOTAO_START, BOTAO_POWER};
@@ -230,14 +237,18 @@ void init_botoes() {
         gpio_init(botoes[i]);
         gpio_set_dir(botoes[i], GPIO_IN);
         gpio_pull_up(botoes[i]);
-        gpio_set_irq_enabled_with_callback(botoes[i], GPIO_IRQ_EDGE_FALL, true, botao_callback);
     }
 
-    gpio_init(BOTAO_POWER);
-    gpio_set_dir(BOTAO_POWER, GPIO_IN);
-    gpio_pull_up(BOTAO_POWER);
-    gpio_set_irq_enabled_with_callback(BOTAO_POWER, GPIO_IRQ_EDGE_FALL, true, botao_callback);
+    gpio_set_irq_enabled_with_callback(BOTAO_PULO, GPIO_IRQ_EDGE_FALL, true, botao_callback);
+    gpio_set_irq_enabled(BOTAO_CORRER, GPIO_IRQ_EDGE_FALL, true); 
+    gpio_set_irq_enabled(BOTAO_START, GPIO_IRQ_EDGE_FALL, true); 
+    gpio_set_irq_enabled(BOTAO_POWER, GPIO_IRQ_EDGE_FALL, true); 
+ 
+    // for (int i = 1; i < 4; i++) {
+    //     gpio_set_irq_enabled(botoes[i], GPIO_IRQ_EDGE_FALL, true); 
+    // }
 }
+
 
 
 int main() {
@@ -246,6 +257,11 @@ int main() {
     stdio_init_all();
     uart_init(UART_ID, BAUD_RATE);
     adc_init();
+
+    //Ligando um LED
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_put(LED_PIN, 1); // Liga o LED
 
     //Definindo a funcao dos pinos  
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
@@ -257,16 +273,16 @@ int main() {
     adc_gpio_init(27); // eixo Y
 
     // Crisa as filas para comunicação entre tarefas
-    xQueueProcessx = xQueueCreate(64, sizeof(adc_t));
-    xQueueProcessy = xQueueCreate(64, sizeof(adc_t));
+    xQueueProcessx = xQueueCreate(1, sizeof(adc_t));
+    xQueueProcessy = xQueueCreate(1, sizeof(adc_t));
 
-    xQueueAdcx = xQueueCreate(64, sizeof(adc_t));
-    xQueueAdcy = xQueueCreate(64, sizeof(adc_t));
+    xQueueAdcx = xQueueCreate(1, sizeof(adc_t));
+    xQueueAdcy = xQueueCreate(1, sizeof(adc_t));
 
-    xQueueAdc2x = xQueueCreate(64, sizeof(adc_t));
-    xQueueAdc2y = xQueueCreate(64, sizeof(adc_t));
+    xQueueAdc2x = xQueueCreate(1, sizeof(adc_t));
+    xQueueAdc2y = xQueueCreate(1, sizeof(adc_t));
 
-    xQueueBotao = xQueueCreate(64, sizeof(adc_t));
+    xQueueBotao = xQueueCreate(2, sizeof(adc_t));
 
 // Criando as tarefas do sistema
     xTaskCreate(x_task, "TASK_X", 512, NULL, 1, NULL);

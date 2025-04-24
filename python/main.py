@@ -1,35 +1,43 @@
 import sys
 import glob
 import serial
-import pyautogui
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from time import sleep
+from pynput.keyboard import Controller
+
+
+# Criar o controlador do teclado
+teclado = Controller()
+def press_key(tecla):
+    """Pressiona e solta uma tecla usando pynput."""
+    teclado.press(tecla)
+    sleep(0.1)
+    teclado.release(tecla)
 
 def move_mouse(axis, value):
-    """Move o mouse de acordo com o eixo e valor recebidos."""
+    """Executa ação de teclado de acordo com o eixo e valor recebidos."""
+    limiar = 30
     if axis == 0:
-        # pyautogui.moveRel(value, 0)
-        if(value>50):
-            pyautogui.press("d")
-        elif(value<-50):
-            pyautogui.press("a")
+        # print(axis,value)
+        if value > limiar:
+            press_key("d")
+        elif value < -limiar:
+            press_key("a")
     elif axis == 1:
-        if(value>50):
-            pyautogui.press("s")
-    elif axis == 2: #pular
-        pyautogui.press('w') 
-        print("Entrou no botao de pular")
-    elif axis == 3: #correr
-        pyautogui.press('y') 
-        print("Entrou no botao de correr")
-    elif axis == 4: #start/stop
-        pyautogui.press('p') 
-        print("Entrou no botao de start/stop")
-    elif axis == 5: #power
-        pyautogui.press('m') 
-        print("Entrou no botao de power")
+        if value > limiar:
+            press_key("s")
+        # elif value < -limiar:
+        #     press_key("w")
+    elif axis == 2:  # pular
+        press_key('p')
+    elif axis == 3:  # correr
+        press_key('x')
+    elif axis == 4:  # taca fogo
+        press_key('x')
+    elif axis == 5:  # silenciar
+        press_key('m')
 
     
 
