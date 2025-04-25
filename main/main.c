@@ -190,7 +190,6 @@ void uart_task(void *params) {
 }
 
 void botao_callback(uint gpio, uint32_t events) {
-    static bool ligado = true; // Estado inicial
     adc_t struct1;
 
     if (events == GPIO_IRQ_EDGE_FALL) {
@@ -255,10 +254,10 @@ int main() {
     uart_init(UART_ID, BAUD_RATE);
     adc_init();
 
-    //Ligando um LED
+    //ligando um LED
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_put(LED_PIN, 1); // Liga o LED
+    gpio_put(LED_PIN, 1);
 
     //  definindo a funcao dos pinos  
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
