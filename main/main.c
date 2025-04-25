@@ -18,11 +18,11 @@
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-const int BOTAO_PULO = 2;
-const int BOTAO_CORRER = 3;
-const int BOTAO_START = 4;
-const int BOTAO_POWER = 5;
-const int LED_PIN = 15;
+const int BOTAO_PULO = 10;
+const int BOTAO_CORRER = 6;
+const int BOTAO_POWER = 20;
+const int BOTAO_PAUSE = 3;
+const int LED_PIN = 22;
 
 // Declar filas
 QueueHandle_t xQueueAdcx;
@@ -155,8 +155,7 @@ void uart_task(void *params) {
     adc_t botao;
 
     while (true) {
-        // Se houver dado novo do eixo X, envia pela UART no formato esperado
-        if ( xQueueReceive(xQueueAdc2x, &X, 1) ) {
+        if ( xQueueReceive(xQueueAdc2x, &X, portMAX_DELAY) ) {
             int x_na_escala=escala_mouse(X.val);
             // Garante que só vai pra frente o que for diferente de 0, assim, nao acumula
             if( escala_mouse(X.val) != 0 ){
@@ -169,7 +168,7 @@ void uart_task(void *params) {
         }
 
         // Se houver dado novo do eixo Y, envia pela UART no formato esperado
-        if ( xQueueReceive( xQueueAdc2y, &Y , 1) ) {
+        if ( xQueueReceive( xQueueAdc2y, &Y , portMAX_DELAY) ) {
             int y_na_escala = escala_mouse(Y.val);
             // Garante que só vai pra frente o que for diferente de 0, assim, nao acumula
             if( escala_mouse(Y.val)!=0 ){
@@ -180,13 +179,12 @@ void uart_task(void *params) {
             }            
         }
 
-        if (xQueueReceive(xQueueBotao, &botao, 1)) {
+        if (xQueueReceive(xQueueBotao, &botao, 0)) {
             uart_putc_raw(UART_ID, botao.axis);  // ID do botão (ex: 2 = pulo)
             uart_putc_raw(UART_ID, botao.val);   // 1 = pressionado
             uart_putc_raw(UART_ID, 0);           // reservado
             uart_putc_raw(UART_ID, 0xFF);        // delimitador
         }
-        vTaskDelay( pdMS_TO_TICKS(10) );
 
     }
 }
@@ -196,7 +194,7 @@ void botao_callback(uint gpio, uint32_t events) {
     adc_t struct1;
 
     if (events == GPIO_IRQ_EDGE_FALL) {
-        // if (!ligado && gpio != BOTAO_POWER) return;  // Ignora tudo se desligado
+        // if (!ligado && gpio != BOTAO_POWER) return;  
 
         switch (gpio) {
             case BOTAO_PULO:
@@ -209,15 +207,14 @@ void botao_callback(uint gpio, uint32_t events) {
                 struct1.val = 1;
                 break;
         
-            case BOTAO_START:
+            case BOTAO_POWER:
                 struct1.axis = 4;
                 struct1.val = 1;
                 break;
         
-            case BOTAO_POWER:
-                ligado = !ligado;
+            case BOTAO_PAUSE:
                 struct1.axis = 5;
-                struct1.val = ligado ? 1 : 0;
+                struct1.val = 1;
                 break;
         
             default:
@@ -231,7 +228,7 @@ void botao_callback(uint gpio, uint32_t events) {
 
 
 void init_botoes() {
-    uint botoes[] = {BOTAO_PULO, BOTAO_CORRER, BOTAO_START, BOTAO_POWER};
+    uint botoes[] = {BOTAO_PULO, BOTAO_CORRER, BOTAO_POWER, BOTAO_PAUSE};
 
     for (int i = 0; i < 4; i++) {
         gpio_init(botoes[i]);
@@ -241,8 +238,8 @@ void init_botoes() {
 
     gpio_set_irq_enabled_with_callback(BOTAO_PULO, GPIO_IRQ_EDGE_FALL, true, botao_callback);
     gpio_set_irq_enabled(BOTAO_CORRER, GPIO_IRQ_EDGE_FALL, true); 
-    gpio_set_irq_enabled(BOTAO_START, GPIO_IRQ_EDGE_FALL, true); 
     gpio_set_irq_enabled(BOTAO_POWER, GPIO_IRQ_EDGE_FALL, true); 
+    gpio_set_irq_enabled(BOTAO_PAUSE, GPIO_IRQ_EDGE_FALL, true); 
  
     // for (int i = 1; i < 4; i++) {
     //     gpio_set_irq_enabled(botoes[i], GPIO_IRQ_EDGE_FALL, true); 
@@ -263,7 +260,7 @@ int main() {
     gpio_set_dir(LED_PIN, GPIO_OUT);
     gpio_put(LED_PIN, 1); // Liga o LED
 
-    //Definindo a funcao dos pinos  
+    //  definindo a funcao dos pinos  
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 

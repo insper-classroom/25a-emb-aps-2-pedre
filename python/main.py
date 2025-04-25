@@ -23,8 +23,10 @@ def move_mouse(axis, value):
         # print(axis,value)
         if value > limiar:
             press_key("d")
+
         elif value < -limiar:
             press_key("a")
+            
     elif axis == 1:
         if value > limiar:
             press_key("s")
@@ -36,8 +38,8 @@ def move_mouse(axis, value):
         press_key('x')
     elif axis == 4:  # taca fogo
         press_key('x')
-    elif axis == 5:  # silenciar
-        press_key('m')
+    elif axis == 5:  # pausar
+        press_key('t')
 
     
 
